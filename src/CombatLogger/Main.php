@@ -4,11 +4,12 @@ namespace CombatLogger;
 
 use pocketmine\plugin\PluginBase;
 use pocketmine\event\Listener;
+
 use pocketmine\player\Player;
 
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\player\PlayerCommandPreprocessEvent;
+use pocketmine\event\server\CommandEvent;
 
 use pocketmine\utils\TextFormat;
 
@@ -22,6 +23,7 @@ class Main extends PluginBase implements Listener{
     }
 
     private function tagPlayer(Player $player) : void{
+
         $time = $this->getConfig()->get("time");
         $msg = $this->getConfig()->getNested("messages.player-tagged");
 
@@ -41,25 +43,32 @@ class Main extends PluginBase implements Listener{
         }
     }
 
-    public function onCommandPreprocess(PlayerCommandPreprocessEvent $event) : void{
+    public function onCommand(CommandEvent $event) : void{
 
-        $player = $event->getPlayer();
-        $cmd = strtolower(explode(" ", $event->getMessage())[0]);
-        $cmd = str_replace("/", "", $cmd);
+        $sender = $event->getSender();
 
-        if(isset($this->combatTagged[$player->getName()])){
+        if(!$sender instanceof Player){
+            return;
+        }
 
-            if(time() > $this->combatTagged[$player->getName()]){
-                unset($this->combatTagged[$player->getName()]);
-                $player->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-tagged-timeout")));
+        $cmd = strtolower($event->getCommand());
+
+        if(isset($this->combatTagged[$sender->getName()])){
+
+            if(time() > $this->combatTagged[$sender->getName()]){
+                unset($this->combatTagged[$sender->getName()]);
+                $sender->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-tagged-timeout")));
                 return;
             }
 
             $banned = $this->getConfig()->get("banned-commands");
 
-            if(in_array($cmd, $banned)){
-                $event->cancel();
-                $player->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-run-banned-command")));
+            foreach($banned as $blocked){
+                if(str_starts_with($cmd, $blocked)){
+                    $event->cancel();
+                    $sender->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-run-banned-command")));
+                    return;
+                }
             }
         }
     }
