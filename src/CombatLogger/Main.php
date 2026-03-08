@@ -17,7 +17,7 @@ class Main extends PluginBase implements Listener{
     private array $combatTagged = [];
 
     public function onEnable() : void{
-        $this->saveResource("Settings.yml");
+        $this->saveDefaultConfig();
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
@@ -41,7 +41,7 @@ class Main extends PluginBase implements Listener{
         }
     }
 
-    public function onCommand(PlayerCommandPreprocessEvent $event) : void{
+    public function onCommandPreprocess(PlayerCommandPreprocessEvent $event) : void{
 
         $player = $event->getPlayer();
         $cmd = strtolower(explode(" ", $event->getMessage())[0]);
