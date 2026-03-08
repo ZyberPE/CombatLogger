@@ -43,7 +43,7 @@ class Main extends PluginBase implements Listener{
         }
     }
 
-    public function onCommand(CommandEvent $event) : void{
+    public function onPlayerCommand(CommandEvent $event) : void{
 
         $sender = $event->getSender();
 
