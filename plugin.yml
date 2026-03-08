@@ -1,0 +1,6 @@
+name: CombatLogger
+main: CombatLogger\Main
+version: 0.0.5
+api: 5.0.0
+author: ZyberPE
+description: Combat logging prevention plugin
