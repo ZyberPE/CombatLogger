@@ -7,7 +7,7 @@ namespace CombatLogger;
 use pocketmine\event\Listener;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\player\PlayerCommandPreprocessEvent;
+use pocketmine\event\server\CommandEvent;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
@@ -39,7 +39,7 @@ class Main extends PluginBase implements Listener{
 
                         $online = $this->getServer()->getPlayerExact($player);
 
-                        if($online !== null){
+                        if($online instanceof Player){
 
                             $online->sendMessage(
                                 $this->getConfig()->get("combat-leave-message")
@@ -55,7 +55,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Handle PvP Combat
+     Handle PvP
     */
 
     public function onDamage(EntityDamageByEntityEvent $event) : void{
@@ -68,7 +68,7 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Teaming Plugin Support
+         Teaming plugin support
          Prevent teammates from combat tagging
         */
 
@@ -98,7 +98,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Combat tagging
+     Tag combat
     */
 
     public function tagPlayer(Player $player) : void{
@@ -108,7 +108,7 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Only send message once
+         Send combat enter once
         */
 
         if(!isset($this->combat[$player->getName()])){
@@ -126,7 +126,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Check combat
+     Check combat status
     */
 
     public function isInCombat(Player $player) : bool{
@@ -134,14 +134,18 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Block commands in combat
+     Block commands
     */
 
-    public function onCommandPreprocess(PlayerCommandPreprocessEvent $event) : void{
+    public function onCommand(CommandEvent $event) : void{
 
-        $player = $event->getPlayer();
+        $sender = $event->getSender();
 
-        if(!$this->isInCombat($player)){
+        if(!$sender instanceof Player){
+            return;
+        }
+
+        if(!$this->isInCombat($sender)){
             return;
         }
 
@@ -153,7 +157,7 @@ class Main extends PluginBase implements Listener{
 
             $event->cancel();
 
-            $player->sendMessage(
+            $sender->sendMessage(
                 $this->getConfig()->get("command-block-message")
             );
 
@@ -161,12 +165,12 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Optional specific blocked commands
+         Optional specific commands
         */
 
-        $message = strtolower(substr($event->getMessage(), 1));
+        $commandLine = strtolower($event->getCommand());
 
-        $args = explode(" ", $message);
+        $args = explode(" ", $commandLine);
 
         $command = strtolower($args[0]);
 
@@ -176,7 +180,7 @@ class Main extends PluginBase implements Listener{
 
                 $event->cancel();
 
-                $player->sendMessage(
+                $sender->sendMessage(
                     $this->getConfig()->get("command-block-message")
                 );
 
@@ -186,7 +190,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Kill combat loggers
+     Punish combat loggers
     */
 
     public function onQuit(PlayerQuitEvent $event) : void{
