@@ -26,6 +26,10 @@ class Main extends PluginBase implements Listener{
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
 
+        /*
+         Combat timer checker
+        */
+
         $this->getScheduler()->scheduleRepeatingTask(
             new ClosureTask(function() : void{
 
@@ -50,6 +54,10 @@ class Main extends PluginBase implements Listener{
         );
     }
 
+    /*
+     Handle PvP Combat
+    */
+
     public function onDamage(EntityDamageByEntityEvent $event) : void{
 
         $damager = $event->getDamager();
@@ -60,7 +68,8 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Ignore teammates from Teaming plugin
+         Teaming Plugin Support
+         Prevent teammates from combat tagging
         */
 
         $teaming = $this->getServer()->getPluginManager()->getPlugin("Teaming");
@@ -80,13 +89,17 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Tag both players
+         Tag players
         */
 
         $this->tagPlayer($damager);
 
         $this->tagPlayer($entity);
     }
+
+    /*
+     Combat tagging
+    */
 
     public function tagPlayer(Player $player) : void{
 
@@ -95,7 +108,7 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Send enter message ONCE
+         Only send message once
         */
 
         if(!isset($this->combat[$player->getName()])){
@@ -106,17 +119,25 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Refresh combat timer silently
+         Refresh timer silently
         */
 
         $this->combat[$player->getName()] = time() + $this->combatTime;
     }
 
+    /*
+     Check combat
+    */
+
     public function isInCombat(Player $player) : bool{
         return isset($this->combat[$player->getName()]);
     }
 
-    public function onCommand(PlayerCommandPreprocessEvent $event) : void{
+    /*
+     Block commands in combat
+    */
+
+    public function onCommandPreprocess(PlayerCommandPreprocessEvent $event) : void{
 
         $player = $event->getPlayer();
 
@@ -163,6 +184,10 @@ class Main extends PluginBase implements Listener{
             }
         }
     }
+
+    /*
+     Kill combat loggers
+    */
 
     public function onQuit(PlayerQuitEvent $event) : void{
 
