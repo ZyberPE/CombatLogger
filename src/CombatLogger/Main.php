@@ -27,7 +27,7 @@ class Main extends PluginBase implements Listener{
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
 
         /*
-         Combat timer checker
+         Combat timer task
         */
 
         $this->getScheduler()->scheduleRepeatingTask(
@@ -55,7 +55,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Handle PvP
+     PvP Event
     */
 
     public function onDamage(EntityDamageByEntityEvent $event) : void{
@@ -68,8 +68,8 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Teaming plugin support
-         Prevent teammates from combat tagging
+         Teaming support
+         Prevent teammate combat tagging
         */
 
         $teaming = $this->getServer()->getPluginManager()->getPlugin("Teaming");
@@ -98,7 +98,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Tag combat
+     Combat tagging
     */
 
     public function tagPlayer(Player $player) : void{
@@ -108,7 +108,7 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Send combat enter once
+         Only send enter message once
         */
 
         if(!isset($this->combat[$player->getName()])){
@@ -119,14 +119,14 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Refresh timer silently
+         Refresh timer
         */
 
         $this->combat[$player->getName()] = time() + $this->combatTime;
     }
 
     /*
-     Check combat status
+     Combat check
     */
 
     public function isInCombat(Player $player) : bool{
@@ -134,10 +134,10 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Block commands
+     Command blocker
     */
 
-    public function onCommand(CommandEvent $event) : void{
+    public function onCommandEvent(CommandEvent $event) : void{
 
         $sender = $event->getSender();
 
@@ -165,7 +165,7 @@ class Main extends PluginBase implements Listener{
         }
 
         /*
-         Optional specific commands
+         Optional blocked commands
         */
 
         $commandLine = strtolower($event->getCommand());
@@ -190,7 +190,7 @@ class Main extends PluginBase implements Listener{
     }
 
     /*
-     Punish combat loggers
+     Combat logging punishment
     */
 
     public function onQuit(PlayerQuitEvent $event) : void{
