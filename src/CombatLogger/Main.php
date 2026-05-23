@@ -1,74 +1,165 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CombatLogger;
 
-use pocketmine\plugin\PluginBase;
 use pocketmine\event\Listener;
-
-use pocketmine\player\Player;
-
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\server\CommandEvent;
-
-use pocketmine\utils\TextFormat;
+use pocketmine\event\player\PlayerCommandPreprocessEvent;
+use pocketmine\player\Player;
+use pocketmine\plugin\PluginBase;
+use pocketmine\scheduler\ClosureTask;
 
 class Main extends PluginBase implements Listener{
 
-    private array $combatTagged = [];
+    private array $combat = [];
+
+    private int $combatTime;
 
     public function onEnable() : void{
+
         $this->saveDefaultConfig();
+
+        $this->combatTime = (int) $this->getConfig()->get("combat-time");
+
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
-    }
 
-    private function tagPlayer(Player $player) : void{
+        $this->getScheduler()->scheduleRepeatingTask(
+            new ClosureTask(function() : void{
 
-        $time = $this->getConfig()->get("time");
-        $msg = $this->getConfig()->getNested("messages.player-tagged");
+                foreach($this->combat as $player => $time){
 
-        $this->combatTagged[$player->getName()] = time() + $time;
+                    if(time() >= $time){
 
-        $player->sendMessage(TextFormat::colorize($msg));
+                        $online = $this->getServer()->getPlayerExact($player);
+
+                        if($online !== null){
+
+                            $online->sendMessage(
+                                $this->getConfig()->get("combat-leave-message")
+                            );
+                        }
+
+                        unset($this->combat[$player]);
+                    }
+                }
+            }),
+            20
+        );
     }
 
     public function onDamage(EntityDamageByEntityEvent $event) : void{
 
         $damager = $event->getDamager();
-        $victim = $event->getEntity();
+        $entity = $event->getEntity();
 
-        if($damager instanceof Player && $victim instanceof Player){
-            $this->tagPlayer($damager);
-            $this->tagPlayer($victim);
-        }
-    }
-
-    public function onPlayerCommand(CommandEvent $event) : void{
-
-        $sender = $event->getSender();
-
-        if(!$sender instanceof Player){
+        if(!$damager instanceof Player || !$entity instanceof Player){
             return;
         }
 
-        $cmd = strtolower($event->getCommand());
+        /*
+         Ignore teammates from Teaming plugin
+        */
 
-        if(isset($this->combatTagged[$sender->getName()])){
+        $teaming = $this->getServer()->getPluginManager()->getPlugin("Teaming");
 
-            if(time() > $this->combatTagged[$sender->getName()]){
-                unset($this->combatTagged[$sender->getName()]);
-                $sender->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-tagged-timeout")));
-                return;
-            }
+        if($teaming !== null){
 
-            $banned = $this->getConfig()->get("banned-commands");
+            if(method_exists($teaming, "getTeamManager")){
 
-            foreach($banned as $blocked){
-                if(str_starts_with($cmd, $blocked)){
-                    $event->cancel();
-                    $sender->sendMessage(TextFormat::colorize($this->getConfig()->getNested("messages.player-run-banned-command")));
+                if($teaming->getTeamManager()->sameTeam(
+                    $damager->getName(),
+                    $entity->getName()
+                )){
+
                     return;
                 }
+            }
+        }
+
+        /*
+         Tag both players
+        */
+
+        $this->tagPlayer($damager);
+
+        $this->tagPlayer($entity);
+    }
+
+    public function tagPlayer(Player $player) : void{
+
+        if($player->hasPermission("combatlogger.bypass")){
+            return;
+        }
+
+        /*
+         Send enter message ONCE
+        */
+
+        if(!isset($this->combat[$player->getName()])){
+
+            $player->sendMessage(
+                $this->getConfig()->get("combat-enter-message")
+            );
+        }
+
+        /*
+         Refresh combat timer silently
+        */
+
+        $this->combat[$player->getName()] = time() + $this->combatTime;
+    }
+
+    public function isInCombat(Player $player) : bool{
+        return isset($this->combat[$player->getName()]);
+    }
+
+    public function onCommand(PlayerCommandPreprocessEvent $event) : void{
+
+        $player = $event->getPlayer();
+
+        if(!$this->isInCombat($player)){
+            return;
+        }
+
+        /*
+         Block ALL commands
+        */
+
+        if($this->getConfig()->get("block-all-commands")){
+
+            $event->cancel();
+
+            $player->sendMessage(
+                $this->getConfig()->get("command-block-message")
+            );
+
+            return;
+        }
+
+        /*
+         Optional specific blocked commands
+        */
+
+        $message = strtolower(substr($event->getMessage(), 1));
+
+        $args = explode(" ", $message);
+
+        $command = strtolower($args[0]);
+
+        foreach($this->getConfig()->get("blocked-commands") as $blocked){
+
+            if($command === strtolower($blocked)){
+
+                $event->cancel();
+
+                $player->sendMessage(
+                    $this->getConfig()->get("command-block-message")
+                );
+
+                return;
             }
         }
     }
@@ -77,16 +168,15 @@ class Main extends PluginBase implements Listener{
 
         $player = $event->getPlayer();
 
-        if(isset($this->combatTagged[$player->getName()])){
-
-            if(time() < $this->combatTagged[$player->getName()]){
-
-                if($this->getConfig()->get("kill-on-log")){
-                    $player->setHealth(0);
-                }
-
-                unset($this->combatTagged[$player->getName()]);
-            }
+        if(!$this->isInCombat($player)){
+            return;
         }
+
+        if($this->getConfig()->get("kill-on-logout")){
+
+            $player->setHealth(0);
+        }
+
+        unset($this->combat[$player->getName()]);
     }
 }
