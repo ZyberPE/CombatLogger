@@ -1,6 +1,9 @@
 name: CombatLogger
 main: CombatLogger\Main
-version: 0.0.5
+version: 1.0.0
 api: 5.0.0
 author: ZyberPE
-description: Combat logging prevention plugin
+
+permissions:
+  combatlogger.bypass:
+    default: op
